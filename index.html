@@ -404,6 +404,9 @@
   .rank-row.top1 .rank-pos{color:var(--shell-red);font-weight:700}
   .overlay{background:rgba(30,20,0,.45)}
   .fuel-pump{display:block;margin-top:6px;filter:drop-shadow(0 3px 3px rgba(120,60,0,.25))}
+  /* Topo + menu congelados */
+  header.top{position:sticky;top:0;z-index:7}
+  nav.tabs{top:var(--header-h,0px);z-index:6}
 </style>
 </head>
 <body>
@@ -471,7 +474,6 @@
   <button data-view="ranking">Ranking</button>
   <button data-view="historico">Histórico</button>
   <button data-view="membros">Membros</button>
-  <button data-view="atividade" id="tabAtividade">Atividade</button>
 </nav>
 
 <main>
@@ -2030,6 +2032,15 @@ window.openMemberHistory = openMemberHistory;
 window.openActionChoice = openActionChoice;
 
 render();
+</script>
+<script>
+  (function(){
+    var h=document.querySelector('header.top');
+    function ajusta(){document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px');}
+    ajusta();
+    if(window.ResizeObserver){new ResizeObserver(ajusta).observe(h);}
+    window.addEventListener('resize',ajusta);
+  })();
 </script>
 </body>
 </html>
