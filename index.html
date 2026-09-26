@@ -569,7 +569,7 @@
 </div>
 
 <footer style="padding:14px 16px 20px; text-align:center; color:var(--text-muted); font-family:'IBM Plex Mono'; font-size:0.68rem;">
-  v50 · dados compartilhados (Firebase) · atualizado em 14/09/2026
+  v52 · dados compartilhados (Firebase) · atualizado em 26/09/2026
 </footer>
 
 <div class="overlay" id="overlay">
@@ -631,7 +631,7 @@
     <h3 id="actionChoiceTitle"></h3>
     <p class="sub">O que você quer registrar para essa pessoa?</p>
     <button class="confirm" id="actionChoiceSignBtn">Ele assinou</button>
-    <button class="confirm" id="actionChoiceSubBtn" style="background:var(--steel); margin-top:8px;">Foi substituído por outra pessoa</button>
+    <button class="confirm" id="actionChoiceSubBtn" style="background:var(--steel); margin-top:8px;">Assinou no lugar de quem?</button>
     <button class="cancel" id="actionChoiceCancelBtn">Cancelar</button>
   </div>
 </div>
@@ -883,6 +883,7 @@ async function registerSignature(slotMemberId, signedBy, date, aircraft, activit
 }
 
 let pendingSlotMember = null;
+let pendingSigner = null;
 let editingRecordId = null;
 
 function openSignSelf(memberId){
@@ -932,22 +933,26 @@ function openSignSelf(memberId){
 }
 
 function openSubstitute(memberId){
-  pendingSlotMember = memberId;
+  pendingSigner = memberId;
+  pendingSlotMember = null;
   editingRecordId = null;
   const member = members.find(m => m.id === memberId);
+  const stateRank = {warn:0, none:1, ok:2};
   const candidates = members.filter(m => m.id !== memberId)
-    .map(m => ({...m, count: totalSignedBy(m.id), lastDate: lastSignedDateBy(m.id)}))
+    .map(m => ({...m, st: statusFor(m.id)}))
     .sort((a,b) => {
-      if(a.count !== b.count) return a.count - b.count;
-      const da = a.lastDate || '0000-00-00';
-      const db = b.lastDate || '0000-00-00';
-      if(da !== db) return da.localeCompare(db);
+      const ra = stateRank[a.st.state], rb = stateRank[b.st.state];
+      if(ra !== rb) return ra - rb;
+      if(a.st.state === 'warn' && b.st.state === 'warn'){
+        const da = a.st.rec.validUntil, db = b.st.rec.validUntil;
+        if(da !== db) return da.localeCompare(db);
+      }
       return a.name.localeCompare(b.name, 'pt-BR');
     });
 
-  document.getElementById('sheetTitle').textContent = `Substituir ${member.name}`;
+  document.getElementById('sheetTitle').textContent = `${member.name} assinou no lugar de quem?`;
   document.getElementById('sheetSub').textContent = candidates.length
-    ? `Escolha a data, a aeronave, a atividade e o substituto (sugestão por menor número de assinaturas):`
+    ? `Escolha a data, a aeronave, a atividade e quem ${member.name} substituiu (sugestão por quem está mais atrasado):`
     : `Não há outros integrantes cadastrados.`;
   document.getElementById('signDateInput').value = todayISO();
   document.getElementById('aircraftInput').value = '';
@@ -960,8 +965,11 @@ function openSubstitute(memberId){
   list.innerHTML = '';
   candidates.forEach((c, idx) => {
     const div = document.createElement('div');
+    let pillText = 'sem registro';
+    if(c.st.state === 'warn') pillText = `vencida desde ${fmtDate(c.st.rec.validUntil)}`;
+    else if(c.st.state === 'ok') pillText = `válida até ${fmtDate(c.st.rec.validUntil)}`;
     div.className = 'candidate' + (idx===0 ? ' top' : '');
-    div.innerHTML = `<span class="c-name">${escapeHtml(c.name)}</span><span class="c-count mono">${c.count} assinatura${c.count===1?'':'s'}</span>`;
+    div.innerHTML = `<span class="c-name">${escapeHtml(c.name)}</span><span class="c-count mono">${pillText}</span>`;
     div.onclick = () => confirmSubstitute(c.id);
     list.appendChild(div);
   });
@@ -969,7 +977,7 @@ function openSubstitute(memberId){
   document.getElementById('overlay').classList.add('active');
 }
 
-async function confirmSubstitute(substituteId){
+async function confirmSubstitute(slotMemberId){
   const aircraft = document.getElementById('aircraftInput').value.trim();
   if(!aircraft){
     alert('Informe a aeronave antes de confirmar.');
@@ -987,9 +995,9 @@ async function confirmSubstitute(substituteId){
   }
   const date = document.getElementById('signDateInput').value || todayISO();
   try{
-    await registerSignature(pendingSlotMember, substituteId, date, aircraft, activity, reason);
-    const origMember = members.find(m => m.id === pendingSlotMember);
-    const subMember = members.find(m => m.id === substituteId);
+    await registerSignature(slotMemberId, pendingSigner, date, aircraft, activity, reason);
+    const origMember = members.find(m => m.id === slotMemberId);
+    const subMember = members.find(m => m.id === pendingSigner);
     logActivity('substitute', `${subMember ? subMember.name : '?'} assinou no lugar de ${origMember ? origMember.name : '?'} (${aircraft} · ${activity}) — ${fmtDate(date)}`);
     closeSheet();
   } catch(e){
@@ -1080,6 +1088,7 @@ function closeSheet(){
   confirmBtn.disabled = false;
   document.getElementById('reasonRow').style.display = 'none';
   pendingSlotMember = null;
+  pendingSigner = null;
   editingRecordId = null;
 }
 document.getElementById('cancelSheet').onclick = closeSheet;
