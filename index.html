@@ -572,7 +572,7 @@
 </div>
 
 <footer style="padding:14px 16px 20px; text-align:center; color:var(--text-muted); font-family:'IBM Plex Mono'; font-size:0.68rem;">
-  v53 · dados compartilhados (Firebase) · atualizado em 26/09/2026
+  v54 · dados compartilhados (Firebase) · atualizado em 26/09/2026
 </footer>
 
 <div class="overlay" id="overlay">
@@ -635,6 +635,7 @@
     <p class="sub">O que você quer registrar para essa pessoa?</p>
     <button class="confirm" id="actionChoiceSignBtn">Ele assinou</button>
     <button class="confirm" id="actionChoiceSubBtn" style="background:var(--steel); margin-top:8px;">Assinou no lugar de quem?</button>
+    <button class="cancel" id="actionChoiceHistBtn">Ver histórico</button>
     <button class="cancel" id="actionChoiceCancelBtn">Cancelar</button>
   </div>
 </div>
@@ -803,8 +804,7 @@ function memberRowHtml(m){
   } else {
     pillClass='none'; pillText = 'sem registro';
   }
-  const needsAction = st.state !== 'ok';
-  const nameAction = (needsAction && canPainel)
+  const nameAction = canPainel
     ? `openActionChoice('${m.id}')`
     : `openMemberHistory('${m.id}')`;
   return `
@@ -1215,6 +1215,12 @@ document.getElementById('actionChoiceSignBtn').onclick = () => {
   document.getElementById('actionChoiceOverlay').classList.remove('active');
   actionChoiceMemberId = null;
   if(id) openSignSelf(id);
+};
+document.getElementById('actionChoiceHistBtn').onclick = () => {
+  const id = actionChoiceMemberId;
+  document.getElementById('actionChoiceOverlay').classList.remove('active');
+  actionChoiceMemberId = null;
+  if(id) openMemberHistory(id);
 };
 document.getElementById('actionChoiceSubBtn').onclick = () => {
   const id = actionChoiceMemberId;
